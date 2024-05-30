@@ -1,18 +1,18 @@
 ﻿using System;
-using System.Drawing;
-using Microsoft.Extensions.Configuration;
-using Azure;
 using System.IO;
+
+using Azure;
+using Azure.AI.Vision.ImageAnalysis;
+
+using Microsoft.Extensions.Configuration;
 
 // Import namespaces
 
-
 namespace detect_people
 {
-    class Program
+    internal class Program
     {
-
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             try
             {
@@ -30,11 +30,12 @@ namespace detect_people
                 }
 
                 // Authenticate Azure AI Vision client
+                var cvClient = new ImageAnalysisClient(
+                    new Uri(aiSvcEndpoint),
+                    new AzureKeyCredential(aiSvcKey));
 
-                
                 // Analyze image
                 AnalyzeImage(imageFile, cvClient);
-
             }
             catch (Exception ex)
             {
@@ -42,20 +43,26 @@ namespace detect_people
             }
         }
 
-        static void AnalyzeImage(string imageFile, VisionServiceOptions serviceOptions)
+        private static void AnalyzeImage(string imageFile, ImageAnalysisClient client)
         {
             Console.WriteLine($"\nAnalyzing {imageFile} \n");
 
-            var analysisOptions = new ImageAnalysisOptions()
+            // Use a file stream to pass the image data to the analyze call
+            using FileStream stream = new FileStream(imageFile, FileMode.Open);
+
+            // Detect people in the image.
+            ImageAnalysisResult result = client.Analyze(
+                BinaryData.FromStream(stream),
+                VisualFeatures.People);
+
+            // Print people detection results to the console
+            Console.WriteLine($"Image analysis results:");
+            Console.WriteLine($" Metadata: Model: {result.ModelVersion} Image dimensions: {result.Metadata.Width} x {result.Metadata.Height}");
+            Console.WriteLine($" People:");
+            foreach (DetectedPerson person in result.People.Values)
             {
-                // Specify features to be retrieved
-
-            };
-
-            // Get image analysis
-
+                Console.WriteLine($"   Person: Bounding box {person.BoundingBox.ToString()}, Confidence {person.Confidence:F4}");
+            }
         }
-
-
     }
 }
